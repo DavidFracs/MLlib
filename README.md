@@ -1,7 +1,7 @@
 MLlib
 =====
 
-This is a java library contains machine learning algorithms, structures and evaluation methods. I am implementing these codes for getting deep insight about these algorithms, as well as the whole machine learning worlds.
+This is a java library contains machine learning algorithms, structures and evaluation methods. I am implementing these codes for getting deep insight about these algorithms, as well as the whole machine learning world.
 
 Sorry for that I can not provide any guarantee on the correctness and completeness of these codes. 
 
