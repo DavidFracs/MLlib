@@ -11,6 +11,7 @@ import classification.ClassificationAlgorithm;
 import data.Dataset;
 import data.Feature.FeatureType;
 import data.Instance;
+import data.Instance.InstanceType;
 
 class InstanceComparator implements Comparator<Instance>
 {
@@ -37,12 +38,28 @@ class InstanceComparator implements Comparator<Instance>
 
 class TreeNodeC45
 {
-	double result = -1;
-	double value = 0;
-	double support = 0;
-	double errorCount = 0;
-	FeatureType featureType = null;
-	HashMap<Double, TreeNodeC45> children = null;
+	public double result = -1;
+	public double support = 0;
+	
+	public double value = 0;
+	public int fid = -1;
+	public double errorCount = 0;
+	public FeatureType featureType = null;
+	public HashMap<Double, TreeNodeC45> children = new HashMap<Double, TreeNodeC45>();
+	
+	public TreeNodeC45(double value, int fid, FeatureType type)
+	{
+		this.value = value;
+		this.featureType = type;
+		this.fid = fid;
+	}
+	
+	public TreeNodeC45(double result,  double support, double errorCount)
+	{
+		this.result = result;
+		this.support  = support;
+		this.errorCount = errorCount;
+	}
 }
 
 public class DecisionTreeC45 implements ClassificationAlgorithm
@@ -51,16 +68,70 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 	private HashSet<Integer> featureUsed = null;
 	private InstanceComparator instanceComparator = new InstanceComparator();
 	
+	private static int MinNodeSize = 50;
 	public DecisionTreeC45()
 	{
 		
 	}
 	
+	public void buildModel(Dataset dataset) 
+	{
+		ArrayList<Instance> data = new ArrayList<Instance>();
+		data.addAll(dataset.data);
+		root = buildTree(dataset, data);	
+	}
+	
+	public void predict(Dataset dataset)
+	{
+		for(Instance inst : dataset.data)
+			predict(inst);
+	}
+	
+	public void predict(Instance inst)
+	{
+		predict(inst, root);	
+	}
+	
+	private double predict(Instance inst, TreeNodeC45 curRoot) 
+	{
+		if(curRoot.result < 0)
+		{
+			inst.predict = curRoot.result;
+			return curRoot.result;
+		}
+		if(inst.containsFeature(curRoot.fid))
+		{
+			double value = inst.getFeature(curRoot.fid);
+			if(curRoot.featureType == FeatureType.Continuous)
+			{
+				if(value <= curRoot.value)
+					return predict(inst, curRoot.children.get(-1));
+				return predict(inst, curRoot.children.get(1));
+			}
+			return predict(inst, curRoot.children.get(value));
+		}
+		return -1;
+	}
+
 	private TreeNodeC45 buildTree(Dataset dataset, ArrayList<Instance> data)
 	{
+		//check
 		double  posiCount = 0, negaCount = 0, totalCount = 0;
-		double curEn = calculateEntropy(negaCount, posiCount, totalCount);
+		for(int i = 0; i < data.size(); i++)
+		{
+			totalCount++;
+			if(data.get(i).target == 0) posiCount++;
+			else negaCount++;
+		}
+		if(totalCount < MinNodeSize || (posiCount == 0 || negaCount == 0))
+		{
+			double result = posiCount > negaCount ? 1 : 0;
+			double error = result == 1 ? negaCount : posiCount;
+			return new TreeNodeC45(result, totalCount, error);
+		}
+		
 		//get feature of max gain rate
+		double curEn = calculateEntropy(negaCount, posiCount, totalCount);
 		int maxGRFid = -1;
 		double maxGR = 0;
 		for(int fid = 0; fid < dataset.featureCount; fid++)
@@ -76,27 +147,31 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		featureUsed.add(maxGRFid);
 		//split with maxGRFid
 		ArrayList<ArrayList<Instance>> dataSplits = new ArrayList<ArrayList<Instance>>();
-		double thres = splitDataset(dataSplits, data, maxGRFid, dataset.getFeatureType(maxGRFid));
-		
-		
+		ArrayList<Double> valueSplits = new ArrayList<Double>();
+		double thres = splitDataset(dataSplits, valueSplits, data, maxGRFid, dataset.getFeatureType(maxGRFid));
+		data.clear();
+		//build tree node 
+		TreeNodeC45 ret = new TreeNodeC45(thres, maxGRFid, dataset.getFeatureType(maxGRFid));
+		for(int i = 0; i < dataSplits.size(); i++)
+			ret.children.put(valueSplits.get(i),  buildTree(dataset, dataSplits.get(i)));
 		featureUsed.remove(maxGRFid);
-		return null;
+		return ret;
 	}
 	
 	
-	private double splitDataset(ArrayList<ArrayList<Instance>> dataSplits, ArrayList<Instance> data, int maxGRFid, FeatureType type) 
+	private double splitDataset(ArrayList<ArrayList<Instance>> dataSplits, ArrayList<Double> valueSplits, ArrayList<Instance> data, int maxGRFid, FeatureType type) 
 	{
 		if(type == FeatureType.Continuous)
 		{
-			return splitDatasetContinuous(dataSplits, data, maxGRFid);
+			return splitDatasetContinuous(dataSplits, valueSplits, data, maxGRFid);
 		}
 		else
 		{
-			return splitDatasetDiscrete(dataSplits, data, maxGRFid);
+			return splitDatasetDiscrete(dataSplits, valueSplits, data, maxGRFid);
 		}
 	}
 
-	private double splitDatasetDiscrete(ArrayList<ArrayList<Instance>> dataSplits, ArrayList<Instance> data, int maxGRFid) 
+	private double splitDatasetDiscrete(ArrayList<ArrayList<Instance>> dataSplits, ArrayList<Double> valueSplits, ArrayList<Instance> data, int maxGRFid) 
 	{
 		HashMap<Double, ArrayList<Instance>> splits = new HashMap<Double, ArrayList<Instance>>();
 		for(int i = 0; i < data.size(); i++)
@@ -107,13 +182,16 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 			splits.get(val).add(data.get(i));
 		}
 		for(double val : splits.keySet())
-		dataSplits.add(splits.get(val));
+		{
+			dataSplits.add(splits.get(val));
+			valueSplits.add(val);
+		}
 		return 0;
 	}
 
-	private double splitDatasetContinuous(ArrayList<ArrayList<Instance>> dataSplits, ArrayList<Instance> data, int maxGRFid) 
+	private double splitDatasetContinuous(ArrayList<ArrayList<Instance>> dataSplits, ArrayList<Double> valueSplits, ArrayList<Instance> data, int maxGRFid) 
 	{
-		//stats
+		//statistics
 		double fPosiCount = 0, fNegaCount = 0, bPosiCount = 0, bNegaCount = 0;
 		double fCount = 0, bCount = 0, validCount = 0;
 		instanceComparator.fid = maxGRFid;
@@ -141,7 +219,7 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 			{
 				fPosiCount++; bNegaCount--;
 			}
-			double en = fCount / validCount * calculateEntropy(fPosiCount, fNegaCount, fCount) + 
+			double en = bCount / validCount * calculateEntropy(bPosiCount, bNegaCount, bCount) + 
 					fCount / validCount * calculateEntropy(fPosiCount, fNegaCount, fCount); 
 			if(en < minEn)
 			{
@@ -152,6 +230,8 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		//split
 		dataSplits.add(new ArrayList<Instance>());
 		dataSplits.add(new ArrayList<Instance>());
+		valueSplits.add(-1.0);
+		valueSplits.add(1.0);
 		for(int i = 0; i < validCount; i++)
 		{
 			if(data.get(i).getFeature(maxGRFid) <= thres)
@@ -160,14 +240,6 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 				dataSplits.get(1).add(data.get(i));
 		}
 		return thres;
-	}
-
-	public void buildModel(Dataset dataset) 
-	{
-		ArrayList<Instance> data = new ArrayList<Instance>();
-		data.addAll(dataset.data);
-		root = buildTree(dataset, data);
-		
 	}
 	
 	private double calculateEntropy(double a, double b, double total)
@@ -205,7 +277,7 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 			{
 				fPosiCount++; bNegaCount--;
 			}
-			double en = fCount / validCount * calculateEntropy(fPosiCount, fNegaCount, fCount) + 
+			double en = bCount / validCount * calculateEntropy(bPosiCount, bNegaCount, bCount) + 
 					fCount / validCount * calculateEntropy(fPosiCount, fNegaCount, fCount); 
 			totalGain = totalGain + curEn - en;
 		}

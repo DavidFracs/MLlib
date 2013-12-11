@@ -10,9 +10,10 @@ import data.Instance.InstanceType;
 public abstract class Dataset 
 {
 	public ArrayList<Instance> data = new ArrayList<Instance>();
-	private HashMap<Integer, FeatureType> feature2Type = new HashMap<Integer, FeatureType>();
-	public int featureCount = 0;
+	public HashMap<Integer, FeatureType> feature2Type = new HashMap<Integer, FeatureType>();
+	public HashMap<Integer, String> feature2Name = new HashMap<Integer, String>();
 	
+	public int featureCount = 0;
 	public int trainCount = 0;
 	public int testCount  = 0;
 	public int quizCount = 0;
@@ -78,4 +79,6 @@ public abstract class Dataset
 	{
 		return String.format("Instance Count %d %d %d %d", trainCount, testCount, quizCount, data.size());
 	}
+	
+	public abstract void loadFromFile(String trainFile, String testFile, String quizFile, String featureFile);
 }
