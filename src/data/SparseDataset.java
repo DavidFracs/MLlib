@@ -1,4 +1,4 @@
-package Data;
+package data;
 
 public class SparseDataset extends Dataset
 {

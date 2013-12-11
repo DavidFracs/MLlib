@@ -1,16 +1,17 @@
-package Data;
+package data;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
 
-import Data.Feature.FeatureType;
-import Data.Instance.InstanceType;
+import data.Feature.FeatureType;
+import data.Instance.InstanceType;
 
 public abstract class Dataset 
 {
 	public ArrayList<Instance> data = new ArrayList<Instance>();
-	public HashMap<Integer, FeatureType> feature2Type = new HashMap<Integer, FeatureType>();
+	private HashMap<Integer, FeatureType> feature2Type = new HashMap<Integer, FeatureType>();
+	public int featureCount = 0;
 	
 	public int trainCount = 0;
 	public int testCount  = 0;
@@ -32,6 +33,13 @@ public abstract class Dataset
 	public void randomTrainSet(double trainPercent)
 	{
 		randomTrainSet(trainPercent, 1 - trainPercent);
+	}
+	
+	public FeatureType getFeatureType(int fid)
+	{
+		if(feature2Type.containsKey(fid))
+			return feature2Type.get(fid);
+		return FeatureType.Continuous;
 	}
 	
 	public void randomTrainSet(double trainPercent, double testPercent)
