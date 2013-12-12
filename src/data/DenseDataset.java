@@ -15,9 +15,12 @@ public class DenseDataset extends Dataset
 	
 	}
 
+	
+	
 	@Override
 	public void loadFromFile(String trainFile, String testFile, String quizFile, String featureFile) 
 	{
+		System.out.print("Loading dataset... ");
 		try 
 		{
 			if(trainFile != null && trainFile.length() > 0);
@@ -34,7 +37,7 @@ public class DenseDataset extends Dataset
 		{
 			e.printStackTrace();
 		}
-		
+		System.out.println(this.toString());
 	}
 
 	private void loadFeatureFromFile(String featureFile) throws IOException 

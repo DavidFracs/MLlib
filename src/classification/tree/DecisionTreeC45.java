@@ -11,7 +11,6 @@ import classification.ClassificationAlgorithm;
 import data.Dataset;
 import data.Feature.FeatureType;
 import data.Instance;
-import data.Instance.InstanceType;
 
 class InstanceComparator implements Comparator<Instance>
 {
