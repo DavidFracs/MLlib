@@ -15,8 +15,59 @@ public class DenseDataset extends Dataset
 	
 	}
 
+	public void loadFromSparseFile(String trainFile, String testFile, String quizFile, String featureFile, int featureCount) 
+	{
+		System.out.print("Loading dataset... ");
+		this.featureCount = featureCount;
+		try 
+		{
+			if(trainFile != null && trainFile.length() > 0);
+				loadDataFromSparseFile(trainFile, InstanceType.Train, featureCount);
+			if(testFile != null && testFile.length() > 0)
+				loadDataFromSparseFile(testFile, InstanceType.Test, featureCount);
+			if(quizFile != null && quizFile.length() > 0)
+				loadDataFromSparseFile(quizFile, InstanceType.Quiz, featureCount);
+			if(featureFile != null && featureFile.length() > 0)
+				loadFeatureFromFile(featureFile);
+			
+		} 
+		catch (IOException e) 
+		{
+			e.printStackTrace();
+		}
+		System.out.println(this.toString());
+	}
 	
-	
+	private void loadDataFromSparseFile(String file, InstanceType type, int featureCount) throws IOException 
+	{
+		FileReader fr = new FileReader(file);
+		BufferedReader br = new BufferedReader(fr);
+		ArrayList<Double> features = new ArrayList<Double>();
+		String line = null;
+		while((line = br.readLine()) != null)
+		{
+			String[] tks = line.trim().split("[\t]+");
+			int id = Integer.parseInt(tks[0]);
+			double target = Double.parseDouble(tks[1]);
+			features.clear();
+			for(int i = 0; i < featureCount; i++) features.add(0.0);
+			for(int i = 2; i < tks.length; i++)
+			{
+				int fid = Integer.parseInt(tks[i].split(":")[0]);
+				double value = Double.parseDouble(tks[i].split(":")[1]);
+				features.set(fid, value);
+			}
+			if(features.size() > this.featureCount)
+				featureCount = features.size();
+			DenseInstance inst = new DenseInstance(id, target);
+			inst.type = type;
+			inst.addFeature(features);
+			this.addInstance(inst);
+		}
+		br.close();
+		fr.close();
+	}
+
 	@Override
 	public void loadFromFile(String trainFile, String testFile, String quizFile, String featureFile) 
 	{
@@ -26,9 +77,9 @@ public class DenseDataset extends Dataset
 			if(trainFile != null && trainFile.length() > 0);
 				loadDataFromFile(trainFile, InstanceType.Train);
 			if(testFile != null && testFile.length() > 0)
-				loadDataFromFile(trainFile, InstanceType.Test);
+				loadDataFromFile(testFile, InstanceType.Test);
 			if(quizFile != null && quizFile.length() > 0)
-				loadDataFromFile(trainFile, InstanceType.Quiz);
+				loadDataFromFile(quizFile, InstanceType.Quiz);
 			if(featureFile != null && featureFile.length() > 0)
 				loadFeatureFromFile(featureFile);
 			
@@ -75,6 +126,8 @@ public class DenseDataset extends Dataset
 				double value = Double.parseDouble(tks[i].split(":")[1]);
 				features.add(value);
 			}
+			if(features.size() > this.featureCount)
+				featureCount = features.size();
 			DenseInstance inst = new DenseInstance(id, target);
 			inst.type = type;
 			inst.addFeature(features);

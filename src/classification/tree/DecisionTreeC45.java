@@ -1,5 +1,7 @@
 package classification.tree;
 
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -11,6 +13,7 @@ import classification.ClassificationAlgorithm;
 import data.Dataset;
 import data.Feature.FeatureType;
 import data.Instance;
+import data.Instance.InstanceType;
 
 class InstanceComparator implements Comparator<Instance>
 {
@@ -46,11 +49,12 @@ class TreeNodeC45
 	public FeatureType featureType = null;
 	public HashMap<Double, TreeNodeC45> children = new HashMap<Double, TreeNodeC45>();
 	
-	public TreeNodeC45(double value, int fid, FeatureType type)
+	public TreeNodeC45(double value, int fid, FeatureType type, double support)
 	{
 		this.value = value;
 		this.featureType = type;
 		this.fid = fid;
+		this.support = support;
 	}
 	
 	public TreeNodeC45(double result,  double support, double errorCount)
@@ -67,16 +71,18 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 	private HashSet<Integer> featureUsed = null;
 	private InstanceComparator instanceComparator = new InstanceComparator();
 	
-	private static int MinNodeSize = 50;
+	private static int MinNodeSize = 1;
 	public DecisionTreeC45()
 	{
-		
+		featureUsed = new HashSet<Integer>();
 	}
 	
 	public void buildModel(Dataset dataset) 
 	{
 		ArrayList<Instance> data = new ArrayList<Instance>();
-		data.addAll(dataset.data);
+		for(Instance inst : dataset.data)
+			if(inst.type == InstanceType.Train)
+				data.add(inst);
 		root = buildTree(dataset, data);	
 	}
 	
@@ -93,7 +99,12 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 	
 	private double predict(Instance inst, TreeNodeC45 curRoot) 
 	{
-		if(curRoot.result < 0)
+		if(curRoot == null) 
+		{
+			inst.predict = 0;
+			return 0;
+		}
+		if(curRoot.result >= 0)
 		{
 			inst.predict = curRoot.result;
 			return curRoot.result;
@@ -104,8 +115,8 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 			if(curRoot.featureType == FeatureType.Continuous)
 			{
 				if(value <= curRoot.value)
-					return predict(inst, curRoot.children.get(-1));
-				return predict(inst, curRoot.children.get(1));
+					return predict(inst, curRoot.children.get(-1.0));
+				return predict(inst, curRoot.children.get(1.0));
 			}
 			return predict(inst, curRoot.children.get(value));
 		}
@@ -119,15 +130,13 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		for(int i = 0; i < data.size(); i++)
 		{
 			totalCount++;
-			if(data.get(i).target == 0) posiCount++;
+			if(data.get(i).target == 1) posiCount++;
 			else negaCount++;
 		}
-		if(totalCount < MinNodeSize || (posiCount == 0 || negaCount == 0))
-		{
-			double result = posiCount > negaCount ? 1 : 0;
-			double error = result == 1 ? negaCount : posiCount;
+		double result = posiCount > negaCount ? 1 : 0;
+		double error = result == 1 ? negaCount : posiCount;
+		if(totalCount < MinNodeSize || error == 0 || featureUsed.size() == dataset.featureCount)
 			return new TreeNodeC45(result, totalCount, error);
-		}
 		
 		//get feature of max gain rate
 		double curEn = calculateEntropy(negaCount, posiCount, totalCount);
@@ -143,6 +152,8 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 				maxGR = curGR;
 			}
 		}
+		if(maxGR == 0)
+			return new TreeNodeC45(result, totalCount, error);
 		featureUsed.add(maxGRFid);
 		//split with maxGRFid
 		ArrayList<ArrayList<Instance>> dataSplits = new ArrayList<ArrayList<Instance>>();
@@ -150,7 +161,7 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		double thres = splitDataset(dataSplits, valueSplits, data, maxGRFid, dataset.getFeatureType(maxGRFid));
 		data.clear();
 		//build tree node 
-		TreeNodeC45 ret = new TreeNodeC45(thres, maxGRFid, dataset.getFeatureType(maxGRFid));
+		TreeNodeC45 ret = new TreeNodeC45(thres, maxGRFid, dataset.getFeatureType(maxGRFid), totalCount);
 		for(int i = 0; i < dataSplits.size(); i++)
 			ret.children.put(valueSplits.get(i),  buildTree(dataset, dataSplits.get(i)));
 		featureUsed.remove(maxGRFid);
@@ -218,6 +229,7 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 			{
 				fPosiCount++; bNegaCount--;
 			}
+			if(data.get(i).getFeature(maxGRFid) == data.get(i+1).getFeature(maxGRFid)) continue;
 			double en = bCount / validCount * calculateEntropy(bPosiCount, bNegaCount, bCount) + 
 					fCount / validCount * calculateEntropy(fPosiCount, fNegaCount, fCount); 
 			if(en < minEn)
@@ -265,6 +277,7 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		validCount = bCount;
 		// averageGain
 		double totalGain = 0;
+		
 		for(int i = 0; i < validCount - 1; i++)
 		{
 			fCount++; bCount--;
@@ -298,6 +311,7 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 			{
 				fPosiCount++; bNegaCount--;
 			}
+			if(data.get(i).getFeature(fid) == data.get(i+1).getFeature(fid)) continue;
 			double en = fCount / validCount * calculateEntropy(fPosiCount, fNegaCount, fCount) + 
 					fCount / validCount * calculateEntropy(fPosiCount, fNegaCount, fCount); 
 			double gain = curEn - en;
@@ -329,7 +343,7 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		{
 			double[] count = pair.getValue();
 			en = en + count[2]/validCount * calculateEntropy(count[0], count[1], count[2]);
-			splitEn = splitEn + count[2]/validCount * Math.log(count[2]/validCount);
+			splitEn = splitEn - count[2]/validCount * Math.log(count[2]/validCount);
 		}
 		return (curEn - en) / splitEn * validCount / data.size() ;
 	}
@@ -340,5 +354,44 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 			return getGainRateContinuous(data, fid, curEn);
 		else
 			return getGainRateDiscrete(data, fid, curEn);
+	}
+	
+	public void printTree(String treeDumpFile)
+	{
+		try 
+		{
+			FileOutputStream fos = new FileOutputStream(treeDumpFile);
+			PrintStream ps = new PrintStream(fos);
+			printTree(root, ps);
+			ps.close();
+			fos.close();
+		} 
+		catch (Exception e) 
+		{
+			e.printStackTrace();
+		}
+	}
+
+	private void printTree(TreeNodeC45 curRoot, PrintStream ps) 
+	{
+		ps.println("<TreeNode>");
+		if(curRoot.result < 0)
+		{
+			ps.println("<fid>" + curRoot.fid + "</fid>");
+			ps.println("<type>" + curRoot.featureType + "</type>");
+			ps.println("<value>" + curRoot.value + "</value>");
+			ps.println("<support>" + curRoot.support + "</support>");
+			ps.println("<children>");
+			for(double val : curRoot.children.keySet())
+				printTree(curRoot.children.get(val), ps);
+			ps.println("</children>");
+		}
+		else
+		{
+			ps.println("<result>" + curRoot.result + "</result>");
+			ps.println("<support>" + curRoot.support + "</support>");
+			ps.println("<error>" + curRoot.errorCount + "</error>");
+		}
+		ps.println("</TreeNode>");
 	}
 }
