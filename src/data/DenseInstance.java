@@ -58,4 +58,13 @@ public class DenseInstance extends Instance
 	{
 		return this.features.size() > fid;
 	}
+
+	public Instance clone() {
+		DenseInstance newInst = new DenseInstance(this.id, this.target);
+		newInst.type = this.type;
+		newInst.weight = this.weight;
+		newInst.predict = this.predict;
+		newInst.features = this.features;
+		return newInst;
+	}
 }

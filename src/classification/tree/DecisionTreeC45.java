@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import classification.ClassificationAlgorithm;
 import data.Dataset;
@@ -190,9 +191,9 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		double  posiCount = 0, negaCount = 0, totalCount = 0;
 		for(int i = 0; i < data.size(); i++)
 		{
-			totalCount++;
-			if(data.get(i).target == 1) posiCount++;
-			else negaCount++;
+			totalCount += data.get(i).weight;
+			if(data.get(i).target == 1) posiCount += data.get(i).weight;
+			else negaCount += data.get(i).weight;
 		}
 		double result = posiCount > negaCount ? 1 : 0;
 		double error = result == 1 ? negaCount : posiCount;
@@ -245,12 +246,35 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 	private double splitDatasetDiscrete(ArrayList<ArrayList<Instance>> dataSplits, ArrayList<Double> valueSplits, ArrayList<Instance> data, int maxGRFid) 
 	{
 		HashMap<Double, ArrayList<Instance>> splits = new HashMap<Double, ArrayList<Instance>>();
+		ArrayList<Instance> missInstances = new ArrayList<Instance>();
+		double sum = 0;
+		HashMap<Double, Double> splitSum = new HashMap<Double, Double>(); 
 		for(int i = 0; i < data.size(); i++)
 		{
-			if(!data.get(i).containsFeature(maxGRFid)) continue;
+			if(!data.get(i).containsFeature(maxGRFid))
+			{
+				missInstances.add(data.get(i));
+				continue;
+			}
 			double val = data.get(i).getFeature(maxGRFid);
-			if(!splits.containsKey(val)) splits.put(val, new ArrayList<Instance>());
+			sum += data.get(i).weight;
+			if(!splits.containsKey(val)) 
+			{
+				splits.put(val, new ArrayList<Instance>());
+				splitSum.put(val, 0.0);
+			}
 			splits.get(val).add(data.get(i));
+			splitSum.put(val, data.get(i).weight + splitSum.get(val));
+		}
+		for(double val : splits.keySet())
+		{
+			double weight = splitSum.get(val) / sum;
+			for(Instance inst : missInstances)
+			{
+				Instance pseudoInst = inst.clone();
+				pseudoInst.weight = pseudoInst.weight * weight;
+				splits.get(val).add(pseudoInst);
+			}	
 		}
 		for(double val : splits.keySet())
 		{
@@ -271,28 +295,31 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		{
 			if(!data.get(i).containsFeature(maxGRFid)) break;
 			if(data.get(i).target == 0)
-				bNegaCount++;
-			bCount++;
+				bNegaCount += data.get(i).weight;
+			bCount += data.get(i).weight;
+			validCount++;
 		}
 		bPosiCount = bCount - bNegaCount;
-		validCount = bCount;
 		// max Gain
 		double minEn = Double.MAX_VALUE;
 		double thres = 0;
 		for(int i = 0; i < validCount - 1; i++)
 		{
-			fCount++; bCount--;
+			fCount += data.get(i).weight; 
+			bCount -= data.get(i).weight;
 			if(data.get(i).target == 0)
 			{
-				fNegaCount++; bNegaCount--;
+				fNegaCount += data.get(i).weight; 
+				bNegaCount -= data.get(i).weight;
 			}
 			else
 			{
-				fPosiCount++; bNegaCount--;
+				fPosiCount += data.get(i).weight; 
+				bPosiCount -= data.get(i).weight;
 			}
 			if(data.get(i).getFeature(maxGRFid) == data.get(i+1).getFeature(maxGRFid)) continue;
-			double en = bCount / validCount * calculateEntropy(bPosiCount, bNegaCount, bCount) + 
-					fCount / validCount * calculateEntropy(fPosiCount, fNegaCount, fCount); 
+			double en = bCount / (fCount + bCount) * calculateEntropy(bPosiCount, bNegaCount, bCount) + 
+					fCount / (fCount + bCount) * calculateEntropy(fPosiCount, fNegaCount, fCount); 
 			if(en < minEn)
 			{
 				minEn = en;
@@ -304,12 +331,29 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		dataSplits.add(new ArrayList<Instance>());
 		valueSplits.add(-1.0);
 		valueSplits.add(1.0);
+		double[] weightSum = new double[2];
 		for(int i = 0; i < validCount; i++)
 		{
 			if(data.get(i).getFeature(maxGRFid) <= thres)
+			{
 				dataSplits.get(0).add(data.get(i));
+				weightSum[0] += data.get(i).weight;
+			}
 			else
+			{
 				dataSplits.get(1).add(data.get(i));
+				weightSum[1] += data.get(i).weight;
+			}
+		}
+		double weight = weightSum[0] / (weightSum[0] + weightSum[1]);
+		for(int i = (int)validCount; i < data.size(); i++)
+		{
+			Instance pseudoInst = data.get(i).clone();
+			pseudoInst.weight = pseudoInst.weight * weight;
+			dataSplits.get(0).add(pseudoInst);
+			pseudoInst = data.get(i).clone();
+			pseudoInst.weight = pseudoInst.weight * (1 - weight);
+			dataSplits.get(1).add(pseudoInst);
 		}
 		return thres;
 	}
@@ -331,57 +375,65 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		{
 			if(!data.get(i).containsFeature(fid)) break;
 			if(data.get(i).target == 0)
-				bNegaCount++;
-			bCount++;
+				bNegaCount += data.get(i).weight;
+			bCount += data.get(i).weight;
+			validCount ++;
 		}
 		bPosiCount = bCount - bNegaCount;
-		validCount = bCount;
 		// averageGain
 		double totalGain = 0;
 		
 		for(int i = 0; i < validCount - 1; i++)
 		{
-			fCount++; bCount--;
+			fCount += data.get(i).weight; 
+			bCount -= data.get(i).weight;
 			if(data.get(i).target == 0)
 			{
-				fNegaCount++; bNegaCount--;
+				fNegaCount += data.get(i).weight; 
+				bNegaCount -= data.get(i).weight;
+				
 			}
 			else
 			{
-				fPosiCount++; bNegaCount--;
+				fPosiCount += data.get(i).weight; 
+				bPosiCount -= data.get(i).weight;
+				
 			}
-			double en = bCount / validCount * calculateEntropy(bPosiCount, bNegaCount, bCount) + 
-					fCount / validCount * calculateEntropy(fPosiCount, fNegaCount, fCount); 
+			double en = bCount / (bCount + fCount) * calculateEntropy(bPosiCount, bNegaCount, bCount) + 
+					fCount / (bCount + fCount) * calculateEntropy(fPosiCount, fNegaCount, fCount); 
 			totalGain = totalGain + curEn - en;
 		}
 		double averGain = totalGain / (validCount - 1);
 		
 		//maxGainRate
-		bCount = validCount; fCount = 0;
+		bCount = bCount + fCount; fCount = 0;
 		bPosiCount += fPosiCount; fPosiCount = 0;
 		bNegaCount += fNegaCount; fNegaCount = 0; 
 		double maxGR = 0;
 		for(int i = 0; i < validCount - 1; i++)
 		{
-			fCount++; bCount--;
+			fCount += data.get(i).weight; 
+			bCount -= data.get(i).weight;
 			if(data.get(i).target == 0)
 			{
-				fNegaCount++; bNegaCount--;
+				fNegaCount += data.get(i).weight; 
+				bNegaCount -= data.get(i).weight;
 			}
 			else
 			{
-				fPosiCount++; bNegaCount--;
+				fPosiCount += data.get(i).weight; 
+				bPosiCount -= data.get(i).weight;
 			}
 			if(data.get(i).getFeature(fid) == data.get(i+1).getFeature(fid)) continue;
-			double en = fCount / validCount * calculateEntropy(fPosiCount, fNegaCount, fCount) + 
-					fCount / validCount * calculateEntropy(fPosiCount, fNegaCount, fCount); 
+			double en = fCount / (bCount + fCount) * calculateEntropy(fPosiCount, fNegaCount, fCount) + 
+					fCount / (bCount + fCount) * calculateEntropy(fPosiCount, fNegaCount, fCount); 
 			double gain = curEn - en;
 			if(gain < averGain) continue;
-			double splitEn = calculateEntropy(fCount, bCount, validCount);
+			double splitEn = calculateEntropy(fCount, bCount, (bCount + fCount));
 			double gRate = gain / splitEn;
 			if(gRate > maxGR) maxGR = gRate;
 		}
-		return maxGR * validCount / totalCount;
+		return maxGR * (bCount + fCount) / totalCount;
 	}
 	
 	private double getGainRateDiscrete(ArrayList<Instance> data, int fid, double curEn)
@@ -391,12 +443,12 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		for(int i = 0; i < data.size(); i++)
 		{
 			if(!data.get(i).containsFeature(fid)) continue;
-			validCount++;
+			validCount += data.get(i).weight;
 			double val = data.get(i).getFeature(fid);
 			if(!stat.containsKey(val))
 				stat.put(val, new double[3]);
-			stat.get(val)[(int)(data.get(i).target)]++;
-			stat.get(val)[2]++;
+			stat.get(val)[(int)(data.get(i).target)] += data.get(i).weight;
+			stat.get(val)[2] += data.get(i).weight;
 		}
 		double en = 0;
 		double splitEn = 0;

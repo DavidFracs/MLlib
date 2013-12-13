@@ -55,4 +55,13 @@ public class SparseInstance extends Instance
 	{
 		return this.features.containsKey(fid);
 	}
+	
+	public Instance clone() {
+		SparseInstance newInst = new SparseInstance(this.id, this.target);
+		newInst.type = this.type;
+		newInst.weight = this.weight;
+		newInst.predict = this.predict;
+		newInst.features = this.features;
+		return newInst;
+	}
 }
