@@ -1,5 +1,5 @@
 bin
 bin/*
-.dat
-.txt
-.xml
+*.dat
+*.txt
+*.xml

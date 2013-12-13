@@ -40,6 +40,8 @@ class InstanceComparator implements Comparator<Instance>
 
 class TreeNodeC45
 {
+	public boolean isLeaf = false;
+	
 	public double result = -1;
 	public double support = 0;
 	
@@ -49,12 +51,15 @@ class TreeNodeC45
 	public FeatureType featureType = null;
 	public HashMap<Double, TreeNodeC45> children = new HashMap<Double, TreeNodeC45>();
 	
-	public TreeNodeC45(double value, int fid, FeatureType type, double support)
+	public TreeNodeC45(double value, int fid, FeatureType type, double result, double support, double errorCount)
 	{
 		this.value = value;
 		this.featureType = type;
 		this.fid = fid;
+		this.result = result;
 		this.support = support;
+		this.errorCount = errorCount;
+		this.isLeaf = false;
 	}
 	
 	public TreeNodeC45(double result,  double support, double errorCount)
@@ -62,6 +67,7 @@ class TreeNodeC45
 		this.result = result;
 		this.support  = support;
 		this.errorCount = errorCount;
+		this.isLeaf = true;
 	}
 }
 
@@ -71,7 +77,10 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 	private HashSet<Integer> featureUsed = null;
 	private InstanceComparator instanceComparator = new InstanceComparator();
 	
-	private static int MinNodeSize = 1;
+	private int MinNodeSize = 1;
+	private double ConfidenceLevel = 1;
+	private double ExtraErrorCount = 0.5;
+	
 	public DecisionTreeC45()
 	{
 		featureUsed = new HashSet<Integer>();
@@ -83,8 +92,43 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		for(Instance inst : dataset.data)
 			if(inst.type == InstanceType.Train)
 				data.add(inst);
-		root = buildTree(dataset, data);	
+		root = buildTree(dataset, data);
+		prune();
 	}
+	
+	public void prune()
+	{
+		double[] errorAdded = new double[1];
+		prune(root, errorAdded);
+	}
+	
+	private double prune(TreeNodeC45 curRoot, double errorAdded[])
+	{
+		if(curRoot.isLeaf) 
+		{
+			double curError = curRoot.support * estimateErrorRate(curRoot.support + ExtraErrorCount, curRoot.errorCount + ExtraErrorCount);
+			errorAdded[0] += ExtraErrorCount;
+			return curError;
+		}
+		double childError = 0;
+		for(double val : curRoot.children.keySet())
+		{
+			double[] nextAdded = new double[1];
+			childError += prune(curRoot.children.get(val), nextAdded);
+			errorAdded[0] += nextAdded[0];
+		}
+		double curError = curRoot.support * estimateErrorRate(curRoot.support + errorAdded[0], curRoot.errorCount + errorAdded[0]);
+		if(curError < childError)
+		{
+			curError = curRoot.support * estimateErrorRate(curRoot.support + ExtraErrorCount, curRoot.errorCount + ExtraErrorCount);
+			errorAdded[0] = ExtraErrorCount;
+			curRoot.isLeaf = true;
+			curRoot.children.clear();
+			return curError;
+		}
+		return childError; 
+	}
+	
 	
 	public void predict(Dataset dataset)
 	{
@@ -94,20 +138,29 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 	
 	public void predict(Instance inst)
 	{
-		predict(inst, root);	
+		int count[] = new int[2];
+		predict(inst, root, count);	
+		if(count[0] >= count[1])
+			inst.predict = 0.0;
+		else
+			inst.predict = 1.0;
 	}
 	
-	private double predict(Instance inst, TreeNodeC45 curRoot) 
+	private void predict(Instance inst, TreeNodeC45 curRoot, int[] count) 
 	{
-		if(curRoot == null) 
+		if(curRoot.isLeaf)
 		{
-			inst.predict = 0;
-			return 0;
-		}
-		if(curRoot.result >= 0)
-		{
-			inst.predict = curRoot.result;
-			return curRoot.result;
+			if(curRoot.result == 0)
+			{
+				count[0] += curRoot.support - curRoot.errorCount;
+				count[1] += curRoot.errorCount;
+			}
+			else
+			{
+				count[1] += curRoot.support - curRoot.errorCount;
+				count[0] += curRoot.errorCount;
+			}
+			return;
 		}
 		if(inst.containsFeature(curRoot.fid))
 		{
@@ -115,12 +168,20 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 			if(curRoot.featureType == FeatureType.Continuous)
 			{
 				if(value <= curRoot.value)
-					return predict(inst, curRoot.children.get(-1.0));
-				return predict(inst, curRoot.children.get(1.0));
+					predict(inst, curRoot.children.get(-1.0), count);
+				else
+					predict(inst, curRoot.children.get(1.0), count);
+				return;
 			}
-			return predict(inst, curRoot.children.get(value));
+			else if(curRoot.children.containsKey(value))
+			{
+				predict(inst, curRoot.children.get(value), count);
+				return;
+			}
 		}
-		return -1;
+		//no this value or no this feature
+		for(double val : curRoot.children.keySet())
+			predict(inst, curRoot.children.get(val), count);
 	}
 
 	private TreeNodeC45 buildTree(Dataset dataset, ArrayList<Instance> data)
@@ -161,7 +222,7 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		double thres = splitDataset(dataSplits, valueSplits, data, maxGRFid, dataset.getFeatureType(maxGRFid));
 		data.clear();
 		//build tree node 
-		TreeNodeC45 ret = new TreeNodeC45(thres, maxGRFid, dataset.getFeatureType(maxGRFid), totalCount);
+		TreeNodeC45 ret = new TreeNodeC45(thres, maxGRFid, dataset.getFeatureType(maxGRFid), result,  totalCount, error);
 		for(int i = 0; i < dataSplits.size(); i++)
 			ret.children.put(valueSplits.get(i),  buildTree(dataset, dataSplits.get(i)));
 		featureUsed.remove(maxGRFid);
@@ -375,7 +436,13 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 	private void printTree(TreeNodeC45 curRoot, PrintStream ps) 
 	{
 		ps.println("<TreeNode>");
-		if(curRoot.result < 0)
+		if(curRoot.isLeaf)
+		{
+			ps.println("<result>" + curRoot.result + "</result>");
+			ps.println("<support>" + curRoot.support + "</support>");
+			ps.println("<error>" + curRoot.errorCount + "</error>");
+		}
+		else
 		{
 			ps.println("<fid>" + curRoot.fid + "</fid>");
 			ps.println("<type>" + curRoot.featureType + "</type>");
@@ -386,12 +453,12 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 				printTree(curRoot.children.get(val), ps);
 			ps.println("</children>");
 		}
-		else
-		{
-			ps.println("<result>" + curRoot.result + "</result>");
-			ps.println("<support>" + curRoot.support + "</support>");
-			ps.println("<error>" + curRoot.errorCount + "</error>");
-		}
 		ps.println("</TreeNode>");
+	}
+	
+	private double estimateErrorRate(double support, double error)
+	{
+		double p = (error) / (support);
+		return p + ConfidenceLevel * Math.sqrt(p * (1 - p) / (support));
 	}
 }
