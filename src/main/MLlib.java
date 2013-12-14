@@ -17,7 +17,7 @@ public class MLlib
 	{
 		SparseDataset dataset = new SparseDataset();
 		dataset.loadFromFile("train.dat", "", "", "feature_names.dat");
-		//dataset.randomTrainSet(0.8);
+		dataset.randomTrainSet(0.8);
 		dataset.fixedFoldTrainSet(4, 1);
 		DecisionTreeC45 dt = new DecisionTreeC45();
 		dt.buildModel(dataset);
