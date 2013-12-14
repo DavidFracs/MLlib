@@ -21,7 +21,7 @@ public class MLlib
 		dataset.fixedFoldTrainSet(4, 1);
 		DecisionTreeC45 dt = new DecisionTreeC45();
 		dt.buildModel(dataset);
-		dt.printTree("tree.xml");
+		//dt.printTree("tree.xml");
 		dt.predict(dataset);
 		ClassificationEvaluation.evalPrecision(dataset);
 		//titanicResult("result.dat", dataset);
