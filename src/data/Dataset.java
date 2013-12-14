@@ -75,6 +75,40 @@ public abstract class Dataset
 		System.out.println(this.toString());
 	}
 	
+	public void fixedFoldTrainSet(int foldCount, int testFoldNum)
+	{
+		fixedFoldTrainSet(foldCount, testFoldNum, -1);
+	}
+	
+	public void fixedFoldTrainSet(int foldCount, int testFoldNum, int quizFoldNum)
+	{
+		trainCount = 0;
+		testCount = 0;
+		quizCount = 0;
+		int nn = 0;
+		for(Instance inst : data)
+		{
+			if(nn % foldCount == testFoldNum)
+			{
+				inst.type = InstanceType.Test;
+				testCount++;
+				
+			}
+			else if(nn % foldCount == quizFoldNum)
+			{
+				inst.type = InstanceType.Quiz;
+				quizCount++;
+			}
+			else
+			{			
+				inst.type = InstanceType.Train;
+				trainCount++;
+			}
+			nn++;
+		}
+		System.out.println(this.toString());
+	}
+	
 	public String toString()
 	{
 		return String.format("Instance Count %d %d %d %d", trainCount, testCount, quizCount, data.size());

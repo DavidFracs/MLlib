@@ -16,14 +16,15 @@ public class MLlib
 	public static void main(String[] args)
 	{
 		SparseDataset dataset = new SparseDataset();
-		dataset.loadFromFile("train.dat", "test.dat", "", "feature_names.dat");
+		dataset.loadFromFile("train.dat", "", "", "feature_names.dat");
 		//dataset.randomTrainSet(0.8);
+		dataset.fixedFoldTrainSet(4, 1);
 		DecisionTreeC45 dt = new DecisionTreeC45();
 		dt.buildModel(dataset);
 		dt.printTree("tree.xml");
 		dt.predict(dataset);
 		ClassificationEvaluation.evalPrecision(dataset);
-		titanicResult("result.dat", dataset);
+		//titanicResult("result.dat", dataset);
 	}
 	
 	public static void titanicResult(String filename, Dataset dataset)

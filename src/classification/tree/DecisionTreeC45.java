@@ -34,7 +34,6 @@ class InstanceComparator implements Comparator<Instance>
 		if(s1.getFeature(fid) - s2.getFeature(fid) < 0)
 			return -1;
 		return 0;
-		 
 	}
 }
 
@@ -77,9 +76,10 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 	private HashSet<Integer> featureUsed = null;
 	private InstanceComparator instanceComparator = new InstanceComparator();
 	
-	private int MinNodeSize = 1;
-	private double ConfidenceLevel = 1;
-	private double ExtraErrorCount = 0.5;
+	public int MinNodeSize = 1;
+	public double ConfidenceLevel = 1;
+	public double ExtraErrorCount = 0.5;
+	public boolean AllowFeatureReuse = false;
 	
 	public DecisionTreeC45()
 	{
@@ -223,7 +223,7 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		double maxGR = 0;
 		for(int fid = 0; fid < dataset.featureCount; fid++)
 		{
-			if(featureUsed.contains(fid)) continue;
+			if((!AllowFeatureReuse || dataset.getFeatureType(fid) != FeatureType.Continuous) && featureUsed.contains(fid)) continue;
 			double curGR = getGainRate(data, fid, dataset.getFeatureType(fid), curEn);
 			if(curGR > maxGR)
 			{
