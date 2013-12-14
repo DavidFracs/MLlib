@@ -5,9 +5,9 @@ import java.io.PrintStream;
 
 import classification.tree.DecisionTreeC45;
 import data.Dataset;
-import data.DenseDataset;
 import data.Instance;
 import data.Instance.InstanceType;
+import data.SparseDataset;
 import evaluation.ClassificationEvaluation;
 
 public class MLlib 
@@ -15,8 +15,8 @@ public class MLlib
 	
 	public static void main(String[] args)
 	{
-		DenseDataset dataset = new DenseDataset();
-		dataset.loadFromSparseFile("train.dat", "test.dat", "", "feature_names.dat", 8);
+		SparseDataset dataset = new SparseDataset();
+		dataset.loadFromFile("train.dat", "test.dat", "", "feature_names.dat");
 		//dataset.randomTrainSet(0.8);
 		DecisionTreeC45 dt = new DecisionTreeC45();
 		dt.buildModel(dataset);

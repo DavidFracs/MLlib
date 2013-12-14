@@ -8,7 +8,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import classification.ClassificationAlgorithm;
 import data.Dataset;
@@ -46,15 +45,15 @@ class TreeNodeC45
 	public double result = -1;
 	public double support = 0;
 	
-	public double value = 0;
+	public double thres = 0;
 	public int fid = -1;
 	public double errorCount = 0;
 	public FeatureType featureType = null;
 	public HashMap<Double, TreeNodeC45> children = new HashMap<Double, TreeNodeC45>();
 	
-	public TreeNodeC45(double value, int fid, FeatureType type, double result, double support, double errorCount)
+	public TreeNodeC45(double thres, int fid, FeatureType type, double result, double support, double errorCount)
 	{
-		this.value = value;
+		this.thres = thres;
 		this.featureType = type;
 		this.fid = fid;
 		this.result = result;
@@ -99,10 +98,11 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 	
 	public void prune()
 	{
-		double[] errorAdded = new double[1];
-		prune(root, errorAdded);
+		//double[] errorAdded = new double[1];
+		//prune(root, errorAdded);
+		prune(root);
 	}
-	
+	/*
 	private double prune(TreeNodeC45 curRoot, double errorAdded[])
 	{
 		if(curRoot.isLeaf) 
@@ -129,7 +129,24 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		}
 		return childError; 
 	}
+	*/
 	
+	private double prune(TreeNodeC45 curRoot)
+	{
+		double curError = curRoot.support * estimateErrorRate(curRoot.support + ExtraErrorCount, curRoot.errorCount + ExtraErrorCount);
+		if(curRoot.isLeaf) 
+			return curError;
+		double childError = 0;
+		for(double val : curRoot.children.keySet())
+			childError += prune(curRoot.children.get(val));
+		if(curError < childError)
+		{
+			curRoot.isLeaf = true;
+			curRoot.children.clear();
+			return curError;
+		}
+		return childError; 
+	}
 	
 	public void predict(Dataset dataset)
 	{
@@ -168,7 +185,7 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 			double value = inst.getFeature(curRoot.fid);
 			if(curRoot.featureType == FeatureType.Continuous)
 			{
-				if(value <= curRoot.value)
+				if(value <= curRoot.thres)
 					predict(inst, curRoot.children.get(-1.0), count);
 				else
 					predict(inst, curRoot.children.get(1.0), count);
@@ -475,7 +492,7 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		{
 			FileOutputStream fos = new FileOutputStream(treeDumpFile);
 			PrintStream ps = new PrintStream(fos);
-			printTree(root, ps);
+			printTree(root, -1, ps);
 			ps.close();
 			fos.close();
 		} 
@@ -485,9 +502,10 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		}
 	}
 
-	private void printTree(TreeNodeC45 curRoot, PrintStream ps) 
+	private void printTree(TreeNodeC45 curRoot, double value, PrintStream ps) 
 	{
 		ps.println("<TreeNode>");
+		ps.println("<value>" + value + "</value>");
 		if(curRoot.isLeaf)
 		{
 			ps.println("<result>" + curRoot.result + "</result>");
@@ -498,11 +516,12 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		{
 			ps.println("<fid>" + curRoot.fid + "</fid>");
 			ps.println("<type>" + curRoot.featureType + "</type>");
-			ps.println("<value>" + curRoot.value + "</value>");
+			ps.println("<thres>" + curRoot.thres + "</thres>");
 			ps.println("<support>" + curRoot.support + "</support>");
+			ps.println("<error>" + curRoot.errorCount + "</error>");
 			ps.println("<children>");
 			for(double val : curRoot.children.keySet())
-				printTree(curRoot.children.get(val), ps);
+				printTree(curRoot.children.get(val), val, ps);
 			ps.println("</children>");
 		}
 		ps.println("</TreeNode>");
