@@ -3,11 +3,11 @@ package main;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 
-import classification.tree.DecisionTreeC45;
 import data.Dataset;
 import data.Instance;
 import data.Instance.InstanceType;
 import data.SparseDataset;
+import ensemble.RandomForest;
 import evaluation.ClassificationEvaluation;
 
 public class MLlib 
@@ -18,11 +18,11 @@ public class MLlib
 		SparseDataset dataset = new SparseDataset();
 		dataset.loadFromFile("train.dat", "", "", "feature_names.dat");
 		dataset.randomTrainSet(0.8);
-		dataset.fixedFoldTrainSet(4, 1);
-		DecisionTreeC45 dt = new DecisionTreeC45();
-		dt.buildModel(dataset);
-		//dt.printTree("tree.xml");
-		dt.predict(dataset);
+		//dataset.fixedFoldTrainSet(4, 1);
+		//DecisionTreeC45 dt = new DecisionTreeC45();
+		RandomForest classifier = new RandomForest();
+		classifier.buildModel(dataset);
+		classifier.predict(dataset);
 		ClassificationEvaluation.evalPrecision(dataset);
 		//titanicResult("result.dat", dataset);
 	}

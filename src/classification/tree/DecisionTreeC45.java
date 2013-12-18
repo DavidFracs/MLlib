@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
-import classification.ClassificationAlgorithm;
+import classification.Classifier;
 import data.Dataset;
 import data.Feature.FeatureType;
 import data.Instance;
@@ -70,16 +70,16 @@ class TreeNodeC45
 	}
 }
 
-public class DecisionTreeC45 implements ClassificationAlgorithm
+public class DecisionTreeC45 implements Classifier
 {
 	private TreeNodeC45 root = null;
 	private HashSet<Integer> featureUsed = null;
 	private InstanceComparator instanceComparator = new InstanceComparator();
 	
-	public int MinNodeSize = 1;
-	public double ConfidenceLevel = 1;
-	public double ExtraErrorCount = 0.5;
-	public boolean AllowFeatureReuse = false;
+	public int minLeafSize = 1;
+	public double confidenceLevel = 1;
+	public double extraErrorCount = 0.5;
+	public boolean allowFeatureReuse = false;
 	
 	public DecisionTreeC45()
 	{
@@ -133,7 +133,7 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 	
 	private double prune(TreeNodeC45 curRoot)
 	{
-		double curError = curRoot.support * estimateErrorRate(curRoot.support + ExtraErrorCount, curRoot.errorCount + ExtraErrorCount);
+		double curError = curRoot.support * estimateErrorRate(curRoot.support + extraErrorCount, curRoot.errorCount + extraErrorCount);
 		if(curRoot.isLeaf) 
 			return curError;
 		double childError = 0;
@@ -214,7 +214,7 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		}
 		double result = posiCount > negaCount ? 1 : 0;
 		double error = result == 1 ? negaCount : posiCount;
-		if(totalCount < MinNodeSize || error == 0 || featureUsed.size() == dataset.featureCount)
+		if(totalCount < minLeafSize || error == 0 || featureUsed.size() == dataset.featureCount)
 			return new TreeNodeC45(result, totalCount, error);
 		
 		//get feature of max gain rate
@@ -223,7 +223,7 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 		double maxGR = 0;
 		for(int fid = 0; fid < dataset.featureCount; fid++)
 		{
-			if((!AllowFeatureReuse || dataset.getFeatureType(fid) != FeatureType.Continuous) && featureUsed.contains(fid)) continue;
+			if((!allowFeatureReuse || dataset.getFeatureType(fid) != FeatureType.Continuous) && featureUsed.contains(fid)) continue;
 			double curGR = getGainRate(data, fid, dataset.getFeatureType(fid), curEn);
 			if(curGR > maxGR)
 			{
@@ -530,6 +530,6 @@ public class DecisionTreeC45 implements ClassificationAlgorithm
 	private double estimateErrorRate(double support, double error)
 	{
 		double p = (error) / (support);
-		return p + ConfidenceLevel * Math.sqrt(p * (1 - p) / (support));
+		return p + confidenceLevel * Math.sqrt(p * (1 - p) / (support));
 	}
 }
