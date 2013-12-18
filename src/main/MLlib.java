@@ -4,6 +4,7 @@ import java.io.FileOutputStream;
 import java.io.PrintStream;
 
 import classification.bayes.NaiveBayesClassifier;
+import classification.bayes.RevisedNaiveBayesClassifier;
 import data.Dataset;
 import data.Instance;
 import data.Instance.InstanceType;
@@ -18,9 +19,13 @@ public class MLlib
 		SparseDataset dataset = new SparseDataset();
 		dataset.loadFromFile("train.dat", "", "", "feature_names.dat");
 		dataset.randomTrainSet(0.8);
-		NaiveBayesClassifier classifier = new NaiveBayesClassifier();
+		RevisedNaiveBayesClassifier classifier = new RevisedNaiveBayesClassifier();
 		classifier.buildModel(dataset);
 		classifier.predict(dataset);
+		ClassificationEvaluation.evalPrecision(dataset);
+		NaiveBayesClassifier classifier2 = new NaiveBayesClassifier();
+		classifier2.buildModel(dataset);
+		classifier2.predict(dataset);
 		ClassificationEvaluation.evalPrecision(dataset);
 		
 	}
