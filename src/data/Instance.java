@@ -15,6 +15,7 @@ public abstract class Instance
 	public abstract void removeFeature(int fid);
 	public abstract void removeAllFeatures();
 	public abstract double getFeature(int fid);
+	public abstract int[] getFeatureIds();
 	public abstract boolean containsFeature(int fid);
 	//NOT deep clone, they share common "features" object
 	public abstract Instance clone();

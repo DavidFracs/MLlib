@@ -64,4 +64,13 @@ public class SparseInstance extends Instance
 		newInst.features = this.features;
 		return newInst;
 	}
+
+	public int[] getFeatureIds() 
+	{
+		int [] fids = new int[features.size()];
+		int n = 0;
+		for(int fid : features.keySet())
+			fids[n++] = fid;
+		return fids;
+	}
 }

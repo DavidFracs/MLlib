@@ -67,4 +67,12 @@ public class DenseInstance extends Instance
 		newInst.features = this.features;
 		return newInst;
 	}
+	
+	public int[] getFeatureIds() 
+	{
+		int [] fids = new int[features.size()];
+		for(int i = 0; i < features.size(); i++)
+			fids[i] = i;
+		return fids;
+	}
 }
