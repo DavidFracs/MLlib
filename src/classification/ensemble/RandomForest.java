@@ -1,4 +1,4 @@
-package ensemble;
+package classification.ensemble;
 
 import java.util.HashMap;
 import java.util.HashSet;
