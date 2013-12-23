@@ -30,6 +30,7 @@ public class RandomForest implements Classifier
 		{
 			estimators[i] = new DecisionTreeC45();
 			estimators[i].minLeafSize = minLeafSize;
+			estimators[i].needPrune = false;
 			SparseDataset sampledData = sampleData(dataset);
 			estimators[i].buildModel(sampledData);
 		}

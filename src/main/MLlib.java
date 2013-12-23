@@ -5,6 +5,7 @@ import java.io.PrintStream;
 
 import classification.bayes.NaiveBayesClassifier;
 import classification.bayes.RevisedNaiveBayesClassifier;
+import classification.ensemble.AdaBoostClassifier;
 import data.Dataset;
 import data.Instance;
 import data.Instance.InstanceType;
@@ -17,15 +18,11 @@ public class MLlib
 	public static void main(String[] args)
 	{
 		SparseDataset dataset = new SparseDataset();
-		dataset.loadFromFile("train.dat", "", "", "feature_names.dat");
+		dataset.loadFromFile("train_tree.dat", "", "", "feature_names_tree.dat");
 		dataset.randomTrainSet(0.8);
-		RevisedNaiveBayesClassifier classifier = new RevisedNaiveBayesClassifier();
+		AdaBoostClassifier classifier = new AdaBoostClassifier();
 		classifier.buildModel(dataset);
 		classifier.predict(dataset);
-		ClassificationEvaluation.evalPrecision(dataset);
-		NaiveBayesClassifier classifier2 = new NaiveBayesClassifier();
-		classifier2.buildModel(dataset);
-		classifier2.predict(dataset);
 		ClassificationEvaluation.evalPrecision(dataset);
 		
 	}

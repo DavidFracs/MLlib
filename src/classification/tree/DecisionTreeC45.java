@@ -80,6 +80,8 @@ public class DecisionTreeC45 implements Classifier
 	public double confidenceLevel = 1;
 	public double extraErrorCount = 0.5;
 	public boolean allowFeatureReuse = false;
+	public boolean needPrune = true;
+	public int maxHeight = 30;
 	
 	public DecisionTreeC45()
 	{
@@ -92,8 +94,9 @@ public class DecisionTreeC45 implements Classifier
 		for(Instance inst : dataset.data)
 			if(inst.type == InstanceType.Train)
 				data.add(inst);
-		root = buildTree(dataset, data);
-		prune();
+		root = buildTree(dataset, data, 0);
+		if(needPrune)
+			prune();
 	}
 	
 	public void prune()
@@ -202,7 +205,7 @@ public class DecisionTreeC45 implements Classifier
 			predict(inst, curRoot.children.get(val), count);
 	}
 
-	private TreeNodeC45 buildTree(Dataset dataset, ArrayList<Instance> data)
+	private TreeNodeC45 buildTree(Dataset dataset, ArrayList<Instance> data, int height)
 	{
 		//check
 		double  posiCount = 0, negaCount = 0, totalCount = 0;
@@ -214,7 +217,7 @@ public class DecisionTreeC45 implements Classifier
 		}
 		double result = posiCount > negaCount ? 1 : 0;
 		double error = result == 1 ? negaCount : posiCount;
-		if(totalCount < minLeafSize || error == 0 || featureUsed.size() == dataset.featureCount)
+		if(totalCount < minLeafSize || error == 0 || featureUsed.size() == dataset.featureCount || height == maxHeight)
 			return new TreeNodeC45(result, totalCount, error);
 		
 		//get feature of max gain rate
@@ -233,7 +236,7 @@ public class DecisionTreeC45 implements Classifier
 		}
 		if(maxGR == 0)
 			return new TreeNodeC45(result, totalCount, error);
-		featureUsed.add(maxGRFid);
+		//System.out.println(maxGRFid + " " + maxGR);
 		//split with maxGRFid
 		ArrayList<ArrayList<Instance>> dataSplits = new ArrayList<ArrayList<Instance>>();
 		ArrayList<Double> valueSplits = new ArrayList<Double>();
@@ -242,7 +245,7 @@ public class DecisionTreeC45 implements Classifier
 		//build tree node 
 		TreeNodeC45 ret = new TreeNodeC45(thres, maxGRFid, dataset.getFeatureType(maxGRFid), result,  totalCount, error);
 		for(int i = 0; i < dataSplits.size(); i++)
-			ret.children.put(valueSplits.get(i),  buildTree(dataset, dataSplits.get(i)));
+			ret.children.put(valueSplits.get(i),  buildTree(dataset, dataSplits.get(i), height + 1));
 		featureUsed.remove(maxGRFid);
 		return ret;
 	}
