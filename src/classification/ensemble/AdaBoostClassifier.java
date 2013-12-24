@@ -6,6 +6,11 @@ import data.Dataset;
 import data.Instance;
 import data.Instance.InstanceType;
 
+///////////////////////////////////////////////////////
+
+//Question? how to avoid always choose the same feature?
+
+///////////////////////////////////////////////////////
 public class AdaBoostClassifier implements Classifier 
 {
 	public int estimatorCount = 100;

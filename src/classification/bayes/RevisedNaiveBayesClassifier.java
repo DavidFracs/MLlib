@@ -55,14 +55,14 @@ public class RevisedNaiveBayesClassifier implements Classifier
 			classFeatureProb.put(c, new HashMap<Integer, Double>());
 			
 			double countExcludeC = totalFeatureCount - classTotalFeatureCount.get(c) + dataset.featureCount;
-			double total = 0;
+			//double total = 0;
 			for(int fid : featureCount.keySet())
 			{
 				double featureCountExcludeC = featureCount.get(fid) + 1;
 				if(classFeatureCount.get(c).containsKey(fid))
 					featureCountExcludeC -= classFeatureCount.get(c).get(fid);
 				classFeatureProb.get(c).put(fid, Math.log(featureCountExcludeC / countExcludeC));
-				total += Math.log(featureCountExcludeC / countExcludeC);
+				//total += Math.log(featureCountExcludeC / countExcludeC);
 			}
 			//total = 0 - total;
 			//for(int fid : classFeatureProb.get(c).keySet())

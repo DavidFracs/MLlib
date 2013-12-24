@@ -18,6 +18,8 @@ public abstract class Dataset
 	public int testCount  = 0;
 	public int quizCount = 0;
 	
+	public abstract void loadFromFile(String trainFile, String testFile, String quizFile, String featureFile);
+	
 	private Random seed = new Random();
 	
 	public void addInstance(Instance inst)
@@ -114,5 +116,39 @@ public abstract class Dataset
 		return String.format("Instance Count %d %d %d %d", trainCount, testCount, quizCount, data.size());
 	}
 	
-	public abstract void loadFromFile(String trainFile, String testFile, String quizFile, String featureFile);
+	public void scale()
+	{
+		double[] maxValues = new double[featureCount];
+		double[] minValues = new double[featureCount];
+		for(int i = 0; i < featureCount; i++)
+		{
+			maxValues[i] = Double.NEGATIVE_INFINITY;
+			minValues[i] = Double.POSITIVE_INFINITY;
+		}
+		
+		for(Instance inst : data)
+		{
+			for(int fid : inst.getFeatureIds())
+			{
+				double v = inst.getFeature(fid);
+				if(v > maxValues[fid])
+					maxValues[fid] = v;
+				if(v < minValues[fid])
+					minValues[fid] = v;
+			}
+		}
+		
+		for(Instance inst : data)
+		{
+			for(int fid : inst.getFeatureIds())
+			{
+				double v = inst.getFeature(fid);
+				double span = maxValues[fid] - minValues[fid];
+				if(span <= 0) continue;
+				v = (v - minValues[fid])/span;
+				inst.setFeature(fid, v);
+			}
+		}
+	}
+	
 }

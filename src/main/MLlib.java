@@ -6,6 +6,7 @@ import java.io.PrintStream;
 import classification.bayes.NaiveBayesClassifier;
 import classification.bayes.RevisedNaiveBayesClassifier;
 import classification.ensemble.AdaBoostClassifier;
+import classification.linear.LogisticRegression;
 import data.Dataset;
 import data.Instance;
 import data.Instance.InstanceType;
@@ -18,12 +19,14 @@ public class MLlib
 	public static void main(String[] args)
 	{
 		SparseDataset dataset = new SparseDataset();
-		dataset.loadFromFile("train_tree.dat", "", "", "feature_names_tree.dat");
-		dataset.randomTrainSet(0.8);
-		AdaBoostClassifier classifier = new AdaBoostClassifier();
+		dataset.loadFromFile("train.dat", "", "", "feature_names.dat");
+		dataset.scale();
+		dataset.fixedFoldTrainSet(3, 1);
+		LogisticRegression classifier = new LogisticRegression();
 		classifier.buildModel(dataset);
 		classifier.predict(dataset);
-		ClassificationEvaluation.evalPrecision(dataset);
+		ClassificationEvaluation.evalPrecisionAtN(dataset, 0.3);
+		ClassificationEvaluation.evalAUC(dataset);
 		
 	}
 	
